@@ -1,7 +1,28 @@
+from time import sleep
 import speedtest
-import json
+import tkinter
+import datetime
+import managedata
 
-def chose_server(serversDICT):
+# Constante défini pour plus de simplicité de gestion :
+LOOP_MAX = 1
+WAITING_TIME = 1
+
+
+def app_interface(server):
+    texte = str(server) 
+    app = tkinter.Tk()
+    app.title("bandwitch project")
+    app.geometry("600x400")
+    lb = tkinter.Label(app, text=texte).pack()
+    app.mainloop()
+
+def get_serverlist(): 
+    SPEEDTEST = speedtest.Speedtest()
+    serversList = SPEEDTEST.get_servers()
+    return SPEEDTEST, serversList
+
+def get_server(serversDICT):
     countServerName = 0 # = localisation du serveur
     countServerSponsor = 0 # = nom du serveur
     distanceDICT = {}
@@ -9,6 +30,8 @@ def chose_server(serversDICT):
     paris_avaible = False
     distance_avaible = False
     key = float(0.0)
+
+    
     # # chaque ville contient un nombre de serveurs
     for serversList in serversDICT :
         # on accède a une ville et on cherche si c'est Paris
@@ -63,20 +86,96 @@ def chose_server(serversDICT):
         sorte = sorted(distance_orange_DICT.items(), key=lambda x: x[1])
         return sorte[0][0]
 
-def get_data():
-    SPEEDTEST = speedtest.Speedtest()
+def get_data(server, SPEEDTEST):
+    SPEEDTEST.get_servers(servers= [server])
 
-    serversList = SPEEDTEST.get_servers()
-    # print("servers_list : ", serversList)
-
-    server = chose_server(serversList)
-    print(server)
+    download = SPEEDTEST.download()
+    upload = SPEEDTEST.upload()
     
-    #SPEEDTEST.get_servers(servers = [29542])
-    #download = SPEEDTEST.download()
-    #upload = SPEEDTEST.upload()
-    # print(download)
-    # print("type(r) : ", type(serversList))
-    # connection_data = subprocess.run('speedtest-cli --json', shell=True, capture_output= True)
+    return (download, upload)
 
-get_data()
+def usual_checking():
+    """
+        * return  tuple(0, 0, (0, 0, 0, 0))
+        - upload (int)
+        - download (int)
+        - date (tuple) {years - month - day - hour}
+    """
+
+    download_list = []
+    download = 0
+    upload_list = []
+    upload = 0
+    dates_list = 0
+    time = 0
+
+    SPEEDTEST, serversDict = get_serverlist()
+    server = get_server(serversDict)
+    
+    # on répète l'infomation 10fois
+    while LOOP_MAX > time:
+        time += 1
+        download, upload = get_data(server, SPEEDTEST)
+        print(f"{time} : récupération data...")
+
+        # on ajoute tout dans une liste
+        download_list.append(download)
+        upload_list.append(upload)
+
+        # dernière boucle on récup info
+        if LOOP_MAX == time:
+            dates_list = getinfo_time()
+            
+            # interval de 10s
+            download = set_avarage(download_list)
+            upload = set_avarage(upload_list)
+        sleep(WAITING_TIME)
+
+    print(f"log : usual_check() -> download : {download} -- upload : {upload} -- dates : {dates_list}")       
+    return int(download), int(upload), dates_list 
+
+# simple calcule de moyenne
+def set_avarage(list_): 
+    download_avarage = 0 
+    list_len = len(list_)     # longueur de la liste
+    
+    # add all values
+    for i in list_ :
+        download_avarage += i
+    # do a division
+    download_avarage = download_avarage // list_len
+    return download_avarage
+
+def getinfo_time(): 
+    sys_time = datetime.datetime.now()
+
+    # récupère les données sur le temps
+    date = sys_time.strftime("%d")
+    years = sys_time.strftime("%Y")
+    month = sys_time.strftime("%m")
+    month = str_modifie_month(month)
+    hour = sys_time.strftime("%H")
+    return (years, month, date, hour)
+
+# return une chaine de caractère (préférable pour le stockage de donnée)
+def str_modifie_month(month):
+    if month == "01" : month = "january"
+    elif month == "02" : month = "february"
+    elif month == "03" : month = "march"
+    elif month == "04" : month = "april"
+    elif month == "05" : month = "may"
+    elif month == "06" : month = "june"
+    elif month == "07" : month = "july"
+    elif month == "08" : month = "august"
+    elif month == "09" : month = "september"
+    elif month == "10" : month = "october"
+    elif month == "11" : month = "november"
+    elif month == "12" : month = "december"
+    else : return 0
+    return month
+
+
+# le concept c'est de récupérer le fichier -> appliquer changements -> sauvegarder avec dump
+# tuple(download, upload, (years, month, date, hour))
+usual_data = usual_checking()
+managedata.get_save_json(usual_data)
