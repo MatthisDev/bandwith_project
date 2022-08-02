@@ -1,8 +1,17 @@
+from tabnanny import check
 from time import sleep
+from unittest import result
 import speedtest
 import tkinter
 import datetime
-import managedata
+
+
+import sys
+
+# from DATA.storage import "objet"/"function"
+import DATA.storage
+import DATA.manage
+
 
 # Constante défini pour plus de simplicité de gestion :
 LOOP_MAX = 1
@@ -17,74 +26,80 @@ def app_interface(server):
     lb = tkinter.Label(app, text=texte).pack()
     app.mainloop()
 
-def get_serverlist(): 
-    SPEEDTEST = speedtest.Speedtest()
-    serversList = SPEEDTEST.get_servers()
-    return SPEEDTEST, serversList
+class Server():
+    def __init__(self) -> None:
+        self.speedtest_ = speedtest.Speedtest()
+        self.servers_dict = self.speedtest_.get_servers()
+        self.avaible_paris_server = False
 
-def get_server(serversDICT):
-    countServerName = 0 # = localisation du serveur
-    countServerSponsor = 0 # = nom du serveur
-    distanceDICT = {}
-    distance_orange_DICT = {}
-    paris_avaible = False
-    distance_avaible = False
-    key = float(0.0)
-
+        # DATA SAVING = better execution 
+        # {ID : DISTANCE}
+        self.distance_dict = {}
+        # {ID : DISTANCE}
+        self.orange_servers_dict = {}
+        # {ID : SPRONSOR}
+        self.paris_servers_dict = {}
     
-    # # chaque ville contient un nombre de serveurs
-    for serversList in serversDICT :
-        # on accède a une ville et on cherche si c'est Paris
-        for server in serversDICT[serversList]:
+    def choose_server(self):
 
-            # si oui on regarde s'il y a pas plusieurs serv
-            if server['name'] == 'Paris':
-                paris_avaible = True
-                countServerName += 1
-                key = float(serversList)   # on enregistre la clé du dictionnaire qui représente la ville de Paris
+        self.get_informations()
 
-                # si y a 2 serv PARIS on va donc chercher un serveur ORANGE
-                if countServerName > 1 :
-                    # on accède a Paris pour chercher un serv ORANGE
-                    for server in serversDICT[key]:
+        # if there is server from Paris we choose it
+        if len(self.paris_servers_dict) > 0 :
+            return self.check_orange_servers(True)
+ 
+        # we check if there is any ORANGE servers    
+        elif len(self.orange_servers_dict) > 0:
+            return self.check_orange_servers(False)
+        # we take distance comparason
+        else : 
+            return self.compare_distance(self.distance_dict)
 
-                        if server['sponsor'] == 'ORANGE FRANCE' :
-                            countServerSponsor += 1
-                        # si y en a plus que 2 on compare les distances
-                        elif countServerSponsor > 1:
-                            for server in serversDICT[key]:
-                                if server['sponsor'] == 'ORANGE FRANCE' :
-                                    return server['id']
-                    # si y a 1 serv ORANGE on le return
-                    if countServerSponsor == 1 :
-                        for server in serversDICT[key]:
-                            if server['sponsor'] == 'ORANGE FRANCE' :
-                                return server['id']
 
-                    # si y a 0 serv ORANGE on prend le 1er venu
-                    elif countServerSponsor == 0:    
-                        for server in serversDICT[key]:
-                            return server['id']
-
-            elif server['sponsor'] == 'ORANGE FRANCE':
-                distance_orange_DICT[server['id']] = server['d']
-                distance_avaible = False
+    def get_informations(self):    
+        for value  in self.servers_dict :
+            # go inside key 1 (access to values key 1)
+            for server in self.servers_dict[value] :
                 
-        if countServerName == 1:
-            return serversDICT[key][0]['id']
-        
-    #s'il n'y pas de serv sur Paris on regarde s'il y a des serves ORANGE
-    if not paris_avaible :
-        sorte = sorted(distance_orange_DICT.items(), key=lambda x: x[1])
-        return sorte[0][0]
+                if not self.check_paris_servers(server):
+                    # capture the distance with id
+                    self.distance_dict[server['id']] = server['d']
 
-    #s'il n'y a pas de serv sur Paris ni de serve ORANGE on regarde le serve qui est le plus proche    
-    if distance_avaible :
-        for serversList in serversDICT :
-            for server in serversDICT[serversList]:
-                distanceDICT[server['id']] = server['d']
-        sorte = sorted(distance_orange_DICT.items(), key=lambda x: x[1])
-        return sorte[0][0]
+                    if server["sponsor"] == "ORANGE" :
+                        # save in a dict {ID : DISTANCE, ...}
+                        self.orange_servers_dict[server["id"]] = server["d"]
+
+    def check_paris_servers(self, server):
+
+        if server['name'] == 'Paris':
+            self.paris_servers_dict[server["id"]] = server["d"]
+            return True
+        # There is actualy not Paris servers
+        else : return False
+
+    def check_orange_servers(self, in_Paris):
+        # in Paris we return any ORANGE servers 
+        if in_Paris :
+            if len(self.orange_servers_dict) > 0 :
+                # return firts value
+                for i in self.orange_servers_dict.keys() :
+                    return str(i)
+            else : 
+                for i in self.paris_servers_dict.keys():
+                    return str(i)
+        # else we return the closest to us
+        else : return self.compare_distance(self.orange_servers_dict)
+
+    def compare_distance(self, distances_dict):
+        # sorte servers according to distance (<)
+        if len(distances_dict) > 1 :
+            servers_distance_sorted = sorted(distances_dict.items(), key=lambda x: x[1])
+
+            # return list[(x, y), (x, y)]
+            return servers_distance_sorted[0][0]
+        # there is also one key
+        else :
+            return str(distances_dict.keys())
 
 def get_data(server, SPEEDTEST):
     SPEEDTEST.get_servers(servers= [server])
@@ -108,14 +123,14 @@ def usual_checking():
     upload = 0
     dates_list = 0
     time = 0
-
-    SPEEDTEST, serversDict = get_serverlist()
-    server = get_server(serversDict)
+    
+    Best_Server = Server()
+    server = Best_Server.choose_server()
     
     # on répète l'infomation 10fois
     while LOOP_MAX > time:
         time += 1
-        download, upload = get_data(server, SPEEDTEST)
+        download, upload = get_data(server, Best_Server.speedtest_)
         print(f"{time} : récupération data...")
 
         # on ajoute tout dans une liste
@@ -127,25 +142,18 @@ def usual_checking():
             dates_list = getinfo_time()
             
             # interval de 10s
-            download = set_avarage(download_list)
-            upload = set_avarage(upload_list)
+            download = DATA.manage.set_avarage(download_list)
+            upload = DATA.manage.set_avarage(upload_list)
         sleep(WAITING_TIME)
+    
+    # convertion -> données plus comprehensible
+    download = bits_to_megabits(int(download))
+    upload = bits_to_megabits(int(upload))
 
     print(f"log : usual_check() -> download : {download} -- upload : {upload} -- dates : {dates_list}")       
-    return int(download), int(upload), dates_list 
+    return download, upload, dates_list 
 
 # simple calcule de moyenne
-def set_avarage(list_): 
-    download_avarage = 0 
-    list_len = len(list_)     # longueur de la liste
-    
-    # add all values
-    for i in list_ :
-        download_avarage += i
-    # do a division
-    download_avarage = download_avarage // list_len
-    return download_avarage
-
 def getinfo_time(): 
     sys_time = datetime.datetime.now()
 
@@ -174,8 +182,12 @@ def str_modifie_month(month):
     else : return 0
     return month
 
+def bits_to_megabits(bits):
+    megabits = bits // 1000000
+    return megabits
+    
 
-# le concept c'est de récupérer le fichier -> appliquer changements -> sauvegarder avec dump
 # tuple(download, upload, (years, month, date, hour))
 usual_data = usual_checking()
-managedata.get_save_json(usual_data)
+DATA.storage.get_save_json(usual_data)
+# DATA.manage.fetch_data()

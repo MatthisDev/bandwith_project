@@ -1,42 +1,40 @@
 import json
-from pickle import FALSE
 
 def get_save_json(informations = tuple):
 
-    with open("bandwith_project/save.json", "r") as file :
+    with open("bandwith_project/DATA/save.json", "r") as file :
         JSON_data = json.load(file)
     
     # modif/add .json 
-    with open("bandwith_project/save.json", "w") as file :
+    with open("bandwith_project/DATA/save.json", "w") as file :
         month = informations[2][1]
         day = int(informations[2][2])
-        avaible = FALSE
+        avaible = False
 
         # def un moment de la journée (matin - aprem - soir)
         moment_of_day = set_day_moment(int(informations[2][3]))
-        print("moment_of_day : ", moment_of_day)
+        print("log : moment_of_day : ", moment_of_day)
         
         # analyse le fichier 
-        JSON_data = checking_month(month, day, JSON_data)
+        JSON_data = checking_days_in_month(month, day, JSON_data)
         JSON_data, avaible = checking_day(month, day, moment_of_day, JSON_data)
 
         if avaible :
-            JSON_data[month][day - 1][moment_of_day] = put_data(JSON_data[month][day - 1][moment_of_day], informations)
+            JSON_data = put_data(JSON_data, informations, moment_of_day, day, month)
 
         json.dump(JSON_data, file)
 
-def checking_month(month, day, JSON_data):
-    dict_add_day = {}
+def checking_days_in_month(month, day, JSON_data):
 
-    # on ajoute des dictionnaires au jour qui n'en ont pas eu 
+    # on ajoute des dictionnaires aux jours qui n'en ont pas eu 
     if len(JSON_data[month]) == 0 and day > 1:
         for i in range(0, day) :
-            JSON_data[month].append(dict_add_day)
+            JSON_data[month].append({})
         print(f"log : checking_month() -> on ajoute {day} jours")
             
     # si nouvelle journée alors add dico
     elif len(JSON_data[month]) == (day - 1):
-        JSON_data[month].append(dict_add_day)
+        JSON_data[month].append({})
         print("log : checking_month() -> on ajoute 1 jour")
     else : 
         print("log : checking_month() -> bon nombre de jours")
@@ -92,13 +90,13 @@ def checking_day(month, day, moment_of_day, JSON_data):
 def set_day_moment(hour):
 
     # matin 4h-11h
-    if 0 < hour <= 11 : return "morning"
+    if 0 <= hour <= 11 : return "morning"
     # après midi 11h-19h
     elif 12 < hour <= 18 : return "afternoon"
     # sinon nuit
     else : return "night"
 
-def put_data(JSON_data, informations) :
-    JSON_data["download"] = informations[0]
-    JSON_data["upload"] = informations[1]
+def put_data(JSON_data, informations, moment_of_day, day, month) :
+    JSON_data[month][day - 1][moment_of_day]["download"] = informations[0]
+    JSON_data[month][day - 1][moment_of_day]["upload"] = informations[1]
     return JSON_data
