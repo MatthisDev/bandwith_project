@@ -13,8 +13,7 @@ def get_save_json(informations = tuple):
 
         # def un moment de la journée (matin - aprem - soir)
         moment_of_day = set_day_moment(int(informations[2][3]))
-        print("log : moment_of_day : ", moment_of_day)
-        
+
         # analyse le fichier 
         JSON_data = checking_days_in_month(month, day, JSON_data)
         JSON_data, avaible = checking_day(month, day, moment_of_day, JSON_data)
@@ -30,14 +29,14 @@ def checking_days_in_month(month, day, JSON_data):
     if len(JSON_data[month]) == 0 and day > 1:
         for i in range(0, day) :
             JSON_data[month].append({})
-        print(f"log : checking_month() -> on ajoute {day} jours")
+        print(f"log -> checking_month() : on ajoute {day} jours")
             
     # si nouvelle journée alors add dico
     elif len(JSON_data[month]) == (day - 1):
         JSON_data[month].append({})
-        print("log : checking_month() -> on ajoute 1 jour")
+        print("log -> checking_month() : on ajoute 1 jour")
     else : 
-        print("log : checking_month() -> bon nombre de jours")
+        print("log -> checking_month() : bon nombre de jours")
 
     return JSON_data
 
@@ -61,7 +60,7 @@ def checking_day(month, day, moment_of_day, JSON_data):
                 JSON_data[month][day - 1]["night"] = {}
 
             else : 
-                print("log : checking_day() -> le ping est déjà fait ou c'est le mauvais moment de la journée")
+                print("log -> checking_day() : le ping est déjà fait ou c'est le mauvais moment de la journée")
                 avaible = False
 
 
@@ -82,17 +81,16 @@ def checking_day(month, day, moment_of_day, JSON_data):
     
     # sinon ca veut dire c'est le 4ème (c'est trop !)
     elif len_keys == 3 :
-        print("log : checking_day() -> 3 ping ont déjà été fait")
+        print("log -> checking_day() : 3 ping ont déjà été fait")
         avaible = False
 
     return JSON_data, avaible
 
 def set_day_moment(hour):
-
     # matin 4h-11h
-    if 0 <= hour <= 11 : return "morning"
+    if 0 <= hour <= 12 : return "morning"
     # après midi 11h-19h
-    elif 12 < hour <= 18 : return "afternoon"
+    elif 13 <= hour <= 18 : return "afternoon"
     # sinon nuit
     else : return "night"
 

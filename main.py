@@ -1,6 +1,4 @@
-from tabnanny import check
 from time import sleep
-from unittest import result
 import speedtest
 import tkinter
 import datetime
@@ -11,7 +9,6 @@ import sys
 # from DATA.storage import "objet"/"function"
 import DATA.storage
 import DATA.manage
-
 
 # Constante défini pour plus de simplicité de gestion :
 LOOP_MAX = 1
@@ -131,7 +128,7 @@ def usual_checking():
     while LOOP_MAX > time:
         time += 1
         download, upload = get_data(server, Best_Server.speedtest_)
-        print(f"{time} : récupération data...")
+        print(f" log -> {time} : récupération data...")
 
         # on ajoute tout dans une liste
         download_list.append(download)
@@ -150,7 +147,7 @@ def usual_checking():
     download = bits_to_megabits(int(download))
     upload = bits_to_megabits(int(upload))
 
-    print(f"log : usual_check() -> download : {download} -- upload : {upload} -- dates : {dates_list}")       
+    print(f"log -> usual_check() -> download : {download} -- upload : {upload} -- dates : {dates_list}")       
     return download, upload, dates_list 
 
 # simple calcule de moyenne
@@ -187,7 +184,7 @@ def bits_to_megabits(bits):
     return megabits
     
 
-# tuple(download, upload, (years, month, date, hour))
+# tuple(download, upload, (years, month, day, hour))
 usual_data = usual_checking()
 DATA.storage.get_save_json(usual_data)
-# DATA.manage.fetch_data()
+DATA.manage.fetch_data(usual_data[2][2], usual_data[2][1])
