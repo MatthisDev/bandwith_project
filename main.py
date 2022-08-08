@@ -1,8 +1,6 @@
 from time import sleep
 import speedtest
-import tkinter
 import datetime
-
 
 import sys
 
@@ -13,15 +11,6 @@ import DATA.manage
 # Constante défini pour plus de simplicité de gestion :
 LOOP_MAX = 1
 WAITING_TIME = 1
-
-
-def app_interface(server):
-    texte = str(server) 
-    app = tkinter.Tk()
-    app.title("bandwitch project")
-    app.geometry("600x400")
-    lb = tkinter.Label(app, text=texte).pack()
-    app.mainloop()
 
 class Server():
     def __init__(self) -> None:
@@ -36,23 +25,8 @@ class Server():
         self.orange_servers_dict = {}
         # {ID : SPRONSOR}
         self.paris_servers_dict = {}
-    
-    def choose_server(self):
 
-        self.get_informations()
-
-        # if there is server from Paris we choose it
-        if len(self.paris_servers_dict) > 0 :
-            return self.check_orange_servers(True)
- 
-        # we check if there is any ORANGE servers    
-        elif len(self.orange_servers_dict) > 0:
-            return self.check_orange_servers(False)
-        # we take distance comparason
-        else : 
-            return self.compare_distance(self.distance_dict)
-
-
+    # storage informations (ORANGE - distances - Paris)    
     def get_informations(self):    
         for value  in self.servers_dict :
             # go inside key 1 (access to values key 1)
@@ -65,7 +39,7 @@ class Server():
                     if server["sponsor"] == "ORANGE" :
                         # save in a dict {ID : DISTANCE, ...}
                         self.orange_servers_dict[server["id"]] = server["d"]
-
+    
     def check_paris_servers(self, server):
 
         if server['name'] == 'Paris':
@@ -85,9 +59,9 @@ class Server():
                 for i in self.paris_servers_dict.keys():
                     return str(i)
         # else we return the closest to us
-        else : return self.compare_distance(self.orange_servers_dict)
+        else : return self.compare_distances(self.orange_servers_dict)
 
-    def compare_distance(self, distances_dict):
+    def compare_distances(self, distances_dict):
         # sorte servers according to distance (<)
         if len(distances_dict) > 1 :
             servers_distance_sorted = sorted(distances_dict.items(), key=lambda x: x[1])
@@ -97,8 +71,24 @@ class Server():
         # there is also one key
         else :
             return str(distances_dict.keys())
+    
+    def choose_server(self):
 
-def get_data(server, SPEEDTEST):
+        self.get_informations()
+ 
+        # if there is a server in Paris, we choose it
+        if len(self.paris_servers_dict) > 0 :
+            return self.check_orange_servers(True)
+ 
+        # else we check if there is a ORANGE servers in France   
+        elif len(self.orange_servers_dict) > 0:
+            return self.check_orange_servers(False)
+        # we take the server with the best distance
+        else : 
+            return self.compare_distances(self.distance_dict)
+
+# we take data : download and upload from the server that we have chosen
+def ping_server(server, SPEEDTEST):
     SPEEDTEST.get_servers(servers= [server])
 
     download = SPEEDTEST.download()
@@ -118,40 +108,39 @@ def usual_checking():
     download = 0
     upload_list = []
     upload = 0
-    dates_list = 0
+    date_list = 0
     time = 0
     
     Best_Server = Server()
     server = Best_Server.choose_server()
     
-    # on répète l'infomation 10fois
+    # repaet the ping as long as we want for a more precise data
     while LOOP_MAX > time:
         time += 1
-        download, upload = get_data(server, Best_Server.speedtest_)
-        print(f" log -> {time} : récupération data...")
+        download, upload = ping_server(server, Best_Server.speedtest_)
+        print(f" log -> {time} : recovery of the data...")
 
-        # on ajoute tout dans une liste
+        # we add the ping in a list to make the avarage
         download_list.append(download)
         upload_list.append(upload)
 
-        # dernière boucle on récup info
+        # last loop we take all informations ()
         if LOOP_MAX == time:
-            dates_list = getinfo_time()
+            date_list = get_info_date()
             
-            # interval de 10s
             download = DATA.manage.set_avarage(download_list)
             upload = DATA.manage.set_avarage(upload_list)
+        # interval of x second (default : 10s)
         sleep(WAITING_TIME)
     
-    # convertion -> données plus comprehensible
+    # we need to convert data
     download = bits_to_megabits(int(download))
     upload = bits_to_megabits(int(upload))
 
-    print(f"log -> usual_check() -> download : {download} -- upload : {upload} -- dates : {dates_list}")       
-    return download, upload, dates_list 
+    print(f"log -> usual_check() -> download : {download} -- upload : {upload} -- dates : {date_list}")       
+    return download, upload, date_list 
 
-# simple calcule de moyenne
-def getinfo_time(): 
+def get_info_date(): 
     sys_time = datetime.datetime.now()
 
     # récupère les données sur le temps
@@ -162,7 +151,6 @@ def getinfo_time():
     hour = sys_time.strftime("%H")
     return (years, month, date, hour)
 
-# return une chaine de caractère (préférable pour le stockage de donnée)
 def str_modifie_month(month):
     if month == "01" : month = "january"
     elif month == "02" : month = "february"
@@ -184,7 +172,8 @@ def bits_to_megabits(bits):
     return megabits
     
 
-# tuple(download, upload, (years, month, day, hour))
-usual_data = usual_checking()
+usual_data = usual_checking() # => (download, upload (years, month, day, hour))
+# put in the data base
 DATA.storage.get_save_json(usual_data)
+# work with data to have result (best day, best part of the day)
 DATA.manage.fetch_data(usual_data[2][2], usual_data[2][1])
